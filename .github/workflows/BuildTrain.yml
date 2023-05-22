@@ -1,0 +1,124 @@
+name: Build Train
+on:
+  # on every monday at 3:30
+  schedule:
+    - cron:  '30 3 * * 1'
+
+  # build a new release on push a new config file
+  push:
+    branches:
+      - "master"
+    paths:
+      - "configs/*"
+
+  # enable manual start of this workflow
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Allow to stop obsolete workflows
+concurrency:
+  group: ci-buildtrain-release-${{ github.ref }}-1
+  cancel-in-progress: true
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      id: ${{ steps.release.outputs.id }}
+      tag_name: ${{ steps.time.outputs.time }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          path: build-configs
+
+      - name: Get time
+        id: time
+        uses: nanzm/get-time-action@v1.1
+        with:
+          format: 'YYYYMMDD-HHmm'
+
+      - name: Create empty release
+        id: release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ steps.time.outputs.time }}
+          tag_name: ${{ steps.time.outputs.time }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: true
+
+  build-armbian:
+    name: Armbian
+    needs: [release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Rename Files
+        run: |
+          WORKSPACE=$(echo ${{ github.workspace }})
+          cd $WORKSPACE
+          tag=$(wget -qO- -t1 -T2 "https://api.github.com/repos/ophub/amlogic-s9xxx-armbian/releases/latest" | grep "tag_name" | head -n 1 | awk -F ":" '{print $2}' | sed 's/\"//g;s/,//g;s/ //g')
+          file=$(wget -qO- -t1 -T2 "https://api.github.com/repos/ophub/amlogic-s9xxx-armbian/releases/latest" | grep "trunk" | head -n 1 | awk -F ":" '{print $2}' | sed 's/\"//g;s/,//g;s/ //g')
+          wget https://github.com/ophub/amlogic-s9xxx-armbian/releases/download/${tag}/${file}
+          gunzip Armbian_*.gz
+
+      - name: Compressing Image
+        run: |
+          WORKSPACE=$(echo ${{ github.workspace }})
+          cd $WORKSPACE/
+          CPU_COUNT="$(nproc)"
+          xz -efkvz9T"${CPU_COUNT}" Armbian_*.img || true
+
+      - name: Calculating checksums
+        run: |
+          WORKSPACE=$(echo ${{ github.workspace }})
+          cd $WORKSPACE/
+          sha256sum Armbian_*.img > Armbian.img.sha256
+
+      - name: Upload Image to Release
+        if: needs.release.outputs.id != ''
+        uses: xresloader/upload-to-github-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          release_id: ${{ needs.release.outputs.id }}
+          file: ./Armbian_*.img.xz
+          draft: true
+
+      - name: Upload Checksum to Release
+        if: needs.release.outputs.id != ''
+        uses: xresloader/upload-to-github-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          release_id: ${{ needs.release.outputs.id }}
+          file: ./Armbian.img.sha256
+          draft: true
+
+
+  finish:
+    name: Finish BuildTrain
+    needs: [release, build-armbian]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish Release
+        uses: StuYarrow/publish-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          id: ${{ needs.release.outputs.id }}
+
+  cleanup:
+    name: Cleanup BuildTrain
+    needs: [release, build-armbian]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete drafts
+        uses: hugo19941994/delete-draft-releases@v1.0.0
+        with:
+          threshold: 2d
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
