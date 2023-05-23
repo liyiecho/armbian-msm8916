@@ -63,19 +63,20 @@ jobs:
           file=$(wget -qO- -t1 -T2 "https://api.github.com/repos/ophub/amlogic-s9xxx-armbian/releases/latest" | grep "trunk" | head -n 1 | awk -F ":" '{print $2}' | sed 's/\"//g;s/,//g;s/ //g')
           wget https://github.com/ophub/amlogic-s9xxx-armbian/releases/download/${tag}/${file}
           gunzip Armbian_*.gz
+          mv Armbian_*.img Armbian.img
 
       - name: Compressing Image
         run: |
           WORKSPACE=$(echo ${{ github.workspace }})
           cd $WORKSPACE/
           CPU_COUNT="$(nproc)"
-          xz -efkvz9T"${CPU_COUNT}" Armbian_*.img || true
+          xz -efkvz9T"${CPU_COUNT}" Armbian.img || true
 
       - name: Calculating checksums
         run: |
           WORKSPACE=$(echo ${{ github.workspace }})
           cd $WORKSPACE/
-          sha256sum Armbian_*.img > Armbian.img.sha256
+          sha256sum Armbian.img > Armbian.img.sha256
 
       - name: Upload Image to Release
         if: needs.release.outputs.id != ''
@@ -84,7 +85,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           release_id: ${{ needs.release.outputs.id }}
-          file: ./Armbian_*.img.xz
+          file: ./Armbian.img.xz
           draft: true
 
       - name: Upload Checksum to Release
