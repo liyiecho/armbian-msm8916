@@ -59,9 +59,8 @@ jobs:
         run: |
           WORKSPACE=$(echo ${{ github.workspace }})
           cd $WORKSPACE
-          tag=$(wget -qO- -t1 -T2 "https://api.github.com/repos/ophub/amlogic-s9xxx-armbian/releases/113268662" | grep "tag_name" | head -n 1 | awk -F ":" '{print $2}' | sed 's/\"//g;s/,//g;s/ //g')
-          file=$(wget -qO- -t1 -T2 "https://api.github.com/repos/ophub/amlogic-s9xxx-armbian/releases/113268662" | grep "trunk" | head -n 1 | awk -F ":" '{print $2}' | sed 's/\"//g;s/,//g;s/ //g')
-          wget https://github.com/ophub/amlogic-s9xxx-armbian/releases/download/${tag}/${file}
+          download_url=$(wget -qO- -t1 -T2 "https://api.github.com/repos/ophub/amlogic-s9xxx-armbian/releases" | grep "trunk" | grep "Armbian_bookworm_save" | head -n 1 | awk -F "\":" '{print $2}' | sed 's/\"//g;;s/ //g')
+          wget ${download_url}
           gunzip Armbian_*.gz
           mv Armbian_*.img Armbian.img
 
