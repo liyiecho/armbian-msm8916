@@ -59,7 +59,7 @@ jobs:
         run: |
           WORKSPACE=$(echo ${{ github.workspace }})
           cd $WORKSPACE
-          download_url=$(wget -qO- -t5 -T15 "https://api.github.com/repos/ophub/amlogic-s9xxx-armbian/releases" | grep "trunk" | grep "Armbian_bullseye_save" | head -n 1 | awk -F "\":" '{print $2}' | sed 's/\"//g;;s/ //g')
+          download_url=$(wget -qO- -t5 -T15 "https://api.github.com/repos/ophub/amlogic-s9xxx-armbian/releases" | grep "trunk" | grep "Armbian_bookworm_save" | head -n 1 | awk -F "\":" '{print $2}' | sed 's/\"//g;;s/ //g')
           wget ${download_url}
           gunzip Armbian_*.gz
           mv Armbian_*.img Armbian.img
