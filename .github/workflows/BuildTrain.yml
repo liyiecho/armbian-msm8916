@@ -76,6 +76,7 @@ jobs:
           WORKSPACE=$(echo ${{ github.workspace }})
           cd $WORKSPACE/
           sha256sum Armbian.img > Armbian.img.sha256
+          sha256sum Armbian.img.xz > Armbian.img.xz.sha256
 
       - name: Upload Image to Release
         if: needs.release.outputs.id != ''
@@ -94,7 +95,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           release_id: ${{ needs.release.outputs.id }}
-          file: ./Armbian.img.sha256
+          file: ./*.sha256
           draft: true
 
 
